@@ -7,8 +7,12 @@ Hermes loads every installed skill into the system prompt on every turn. At 110 
 ## 🎨 Visual Demos
 
 See the architecture in action:
-- **[Architecture Diagram](https://zerodaybrief.blog/articles/skill-gatekeeper/architecture.html)** — How keyword detection routes to mode switching
-- **[Library Analogy](https://zerodaybrief.blog/articles/skill-gatekeeper/library.html)** — Visual metaphor: why loading all 110 skills is like a library kiosk reading every book title aloud
+
+[![Architecture Diagram](architecture-preview.png)](https://zerodaybrief.blog/articles/skill-gatekeeper/architecture.html)
+*How keyword detection routes to mode switching — click for interactive version*
+
+[![Library Analogy](library-preview.png)](https://zerodaybrief.blog/articles/skill-gatekeeper/library.html)
+*Why loading all 110 skills is like a library kiosk reading every book title*
 
 ## Quick Start
 
