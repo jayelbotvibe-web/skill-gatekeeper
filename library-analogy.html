@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Skill Gatekeeper — The Library Analogy</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'JetBrains Mono', monospace;
+      background: #020617;
+      min-height: 100vh;
+      padding: 2rem;
+      color: white;
+    }
+    .container { max-width: 1100px; margin: 0 auto; }
+
+    .header { margin-bottom: 2rem; text-align: center; }
+    .header-row { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-bottom: 0.5rem; }
+    .pulse-dot { width: 12px; height: 12px; background: #22d3ee; border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    h1 { font-size: 1.5rem; font-weight: 700; }
+    .subtitle { color: #94a3b8; font-size: 0.85rem; margin-top: 0.5rem; }
+
+    .diagram-container {
+      background: rgba(15, 23, 42, 0.5);
+      border-radius: 1rem;
+      border: 1px solid #1e293b;
+      padding: 1.5rem;
+      overflow-x: auto;
+      margin-bottom: 2rem;
+    }
+    svg { width: 100%; min-width: 950px; display: block; }
+
+    .scenarios { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; margin-top: 1rem; }
+
+    .card {
+      background: rgba(15, 23, 42, 0.5);
+      border-radius: 0.75rem;
+      border: 1px solid #1e293b;
+      padding: 1.25rem;
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: #334155; }
+    .card-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.5rem;
+    }
+    .card-label.cyan { color: #22d3ee; }
+    .card-label.emerald { color: #34d399; }
+    .card-label.rose { color: #fb7185; }
+    .card-label.amber { color: #fbbf24; }
+    .card-label.violet { color: #a78bfa; }
+    .card-label.orange { color: #fb923c; }
+    .card h3 { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; }
+    .card p { color: #94a3b8; font-size: 0.75rem; line-height: 1.6; }
+
+    .footer { text-align: center; margin-top: 2rem; color: #475569; font-size: 0.7rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="header-row">
+        <div class="pulse-dot"></div>
+        <h1>The Library Analogy</h1>
+      </div>
+      <p class="subtitle">How the Skill Gatekeeper works — from arrival to answer</p>
+    </div>
+
+    <!-- Main Diagram -->
+    <div class="diagram-container">
+      <svg viewBox="0 0 1050 620">
+        <defs>
+          <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
+          </marker>
+          <marker id="arrow-cyan" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#22d3ee" />
+          </marker>
+          <marker id="arrow-rose" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#fb7185" />
+          </marker>
+          <marker id="arrow-amber" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#fbbf24" />
+          </marker>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+          </pattern>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="3" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+
+        <rect width="100%" height="100%" fill="url(#grid)" />
+
+        <!-- ═══════ LIBRARY BUILDING ═══════ -->
+        <rect x="340" y="30" width="690" height="560" rx="12" fill="rgba(251, 191, 36, 0.04)" stroke="#fbbf24" stroke-width="1" stroke-dasharray="8,4"/>
+        <text x="360" y="54" fill="#fbbf24" font-size="10" font-weight="600">📚 The Library</text>
+
+        <!-- ═══════ BOOKSHELVES (before — 110 books) ═══════ -->
+        <rect x="400" y="80" width="240" height="200" rx="6" fill="rgba(76, 29, 149, 0.15)" stroke="#a78bfa" stroke-width="1"/>
+        <text x="520" y="105" fill="#a78bfa" font-size="10" font-weight="600" text-anchor="middle">BEFORE</text>
+        <rect x="415" y="118" width="210" height="18" rx="3" fill="rgba(76, 29, 149, 0.3)" stroke="#a78bfa" stroke-width="0.5"/>
+        <rect x="415" y="142" width="210" height="18" rx="3" fill="rgba(76, 29, 149, 0.3)" stroke="#a78bfa" stroke-width="0.5"/>
+        <rect x="415" y="166" width="210" height="18" rx="3" fill="rgba(76, 29, 149, 0.3)" stroke="#a78bfa" stroke-width="0.5"/>
+        <rect x="415" y="190" width="210" height="18" rx="3" fill="rgba(76, 29, 149, 0.3)" stroke="#a78bfa" stroke-width="0.5"/>
+        <rect x="415" y="214" width="210" height="18" rx="3" fill="rgba(76, 29, 149, 0.3)" stroke="#a78bfa" stroke-width="0.5"/>
+        <rect x="415" y="238" width="210" height="18" rx="3" fill="rgba(76, 29, 149, 0.3)" stroke="#a78bfa" stroke-width="0.5"/>
+        <!-- Labels on books -->
+        <text x="425" y="132" fill="#c4b5fd" font-size="7">Astrophysics · Cooking · Pokemon · Tax Law · Spotify</text>
+        <text x="425" y="156" fill="#c4b5fd" font-size="7">GitHub · Minecraft · Calendars · ASCII Art · ComfyUI</text>
+        <text x="425" y="180" fill="#c4b5fd" font-size="7">Threat Intel · Arxiv · NotebookLM · Maps · Obsidian</text>
+        <text x="425" y="204" fill="#c4b5fd" font-size="7">Debugging · Docker · VPS · Himalaya · P5.js</text>
+        <text x="425" y="228" fill="#c4b5fd" font-size="7">Manim · Podcast · YouTube · Jupyter · PowerPoint</text>
+        <text x="425" y="252" fill="#c4b5fd" font-size="7">... and 85 more</text>
+        <text x="520" y="295" fill="#a78bfa" font-size="9" text-anchor="middle">110 books on shelves</text>
+
+        <!-- ═══════ GATEKEEPER ═══════ -->
+        <rect x="310" y="330" width="100" height="70" rx="8" fill="#0f172a" stroke="#34d399" stroke-width="2" filter="url(#glow)"/>
+        <rect x="310" y="330" width="100" height="70" rx="8" fill="rgba(6, 78, 59, 0.5)" stroke="none"/>
+        <text x="360" y="358" fill="#34d399" font-size="10" font-weight="700" text-anchor="middle">🚪 Gatekeeper</text>
+        <text x="360" y="376" fill="#94a3b8" font-size="8" text-anchor="middle">Keyword scan</text>
+        <text x="360" y="390" fill="#34d399" font-size="6" text-anchor="middle">zero cost · deterministic</text>
+
+        <!-- Arrow: Gatekeeper → Back Room -->
+        <line x1="410" y1="355" x2="478" y2="410" stroke="#fbbf24" stroke-width="2" marker-end="url(#arrow-amber)"/>
+        <text x="435" y="390" fill="#fbbf24" font-size="7">move 91</text>
+        <text x="435" y="400" fill="#fbbf24" font-size="7">books</text>
+
+        <!-- ═══════ BACK ROOM ═══════ -->
+        <rect x="680" y="370" width="180" height="100" rx="8" fill="#0f172a" stroke="#fbbf24" stroke-width="1.5"/>
+        <rect x="680" y="370" width="180" height="100" rx="8" fill="rgba(120, 53, 15, 0.2)" stroke="none"/>
+        <text x="770" y="395" fill="#fbbf24" font-size="10" font-weight="600" text-anchor="middle">📦 Back Room</text>
+        <text x="770" y="415" fill="#94a3b8" font-size="8" text-anchor="middle">Pokemon · Minecraft</text>
+        <text x="770" y="430" fill="#94a3b8" font-size="8" text-anchor="middle">Spotify · ASCII Art</text>
+        <text x="770" y="445" fill="#94a3b8" font-size="8" text-anchor="middle">ComfyUI · P5.js</text>
+        <text x="770" y="460" fill="#fbbf24" font-size="7" text-anchor="middle">91 books · not deleted</text>
+
+        <!-- ═══════ BOOKSHELVES (after — 19 books) ═══════ -->
+        <rect x="400" y="420" width="240" height="160" rx="6" fill="rgba(8, 51, 68, 0.2)" stroke="#22d3ee" stroke-width="1"/>
+        <text x="520" y="445" fill="#22d3ee" font-size="10" font-weight="600" text-anchor="middle">AFTER</text>
+        <rect x="415" y="458" width="210" height="18" rx="3" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="0.5"/>
+        <rect x="415" y="482" width="210" height="18" rx="3" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="0.5"/>
+        <rect x="415" y="506" width="210" height="18" rx="3" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="0.5"/>
+        <rect x="415" y="530" width="210" height="18" rx="3" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="0.5"/>
+        <text x="425" y="472" fill="#67e8f9" font-size="7">Volcanoes · Earthquakes · Plate Tectonics · Arxiv</text>
+        <text x="425" y="496" fill="#67e8f9" font-size="7">Threat Intel · YouTube Research · Maps</text>
+        <text x="425" y="520" fill="#67e8f9" font-size="7">Blog Scanner · Market Data · GIF Search</text>
+        <text x="425" y="544" fill="#67e8f9" font-size="7">📖 Hermes Reference (always on shelf)</text>
+        <text x="520" y="595" fill="#22d3ee" font-size="9" text-anchor="middle">19 books on shelves · 83% fewer</text>
+
+        <!-- Arrow: BEFORE → GATEKEEPER -->
+        <line x1="520" y1="280" x2="410" y2="328" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+        <!-- ═══════ USER (left) ═══════ -->
+        <rect x="30" y="130" width="130" height="70" rx="8" fill="#0f172a" stroke="#94a3b8" stroke-width="1.5"/>
+        <rect x="30" y="130" width="130" height="70" rx="8" fill="rgba(30, 41, 59, 0.5)" stroke="none"/>
+        <text x="95" y="158" fill="white" font-size="12" font-weight="600" text-anchor="middle">👤 You</text>
+        <text x="95" y="176" fill="#94a3b8" font-size="8" text-anchor="middle">"Research</text>
+        <text x="95" y="189" fill="#94a3b8" font-size="8" text-anchor="middle">volcanoes"</text>
+
+        <!-- Arrow: YOU → GATEKEEPER -->
+        <line x1="160" y1="165" x2="308" y2="230" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+        <text x="200" y="205" fill="#64748b" font-size="7">walks toward</text>
+        <text x="200" y="215" fill="#64748b" font-size="7">library</text>
+
+        <!-- ═══════ LIBRARIAN ═══════ -->
+        <rect x="30" y="370" width="130" height="70" rx="8" fill="#0f172a" stroke="#22d3ee" stroke-width="1.5"/>
+        <rect x="30" y="370" width="130" height="70" rx="8" fill="rgba(8, 51, 68, 0.4)" stroke="none"/>
+        <text x="95" y="398" fill="white" font-size="12" font-weight="600" text-anchor="middle">📖 Librarian</text>
+        <text x="95" y="416" fill="#94a3b8" font-size="8" text-anchor="middle">Recites 19</text>
+        <text x="95" y="429" fill="#94a3b8" font-size="8" text-anchor="middle">books (not 110)</text>
+
+        <!-- Arrow: SHELVES → LIBRARIAN -->
+        <path d="M 400 500 Q 220 500 160 440" fill="none" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrow-cyan)"/>
+        <text x="250" y="490" fill="#22d3ee" font-size="7">reads from shelves</text>
+
+        <!-- ═══════ RECITATION ═══════ -->
+        <rect x="30" y="480" width="250" height="55" rx="6" fill="rgba(8, 51, 68, 0.15)" stroke="#22d3ee" stroke-width="1" stroke-dasharray="3,3"/>
+        <text x="155" y="500" fill="#67e8f9" font-size="8" text-anchor="middle">🗣 "Volcanoes, Earthquakes, Plate Tectonics,</text>
+        <text x="155" y="515" fill="#67e8f9" font-size="8" text-anchor="middle">Arxiv, Threat Intel, Maps...</text>
+        <text x="155" y="530" fill="#22d3ee" font-size="7" text-anchor="middle">Recitation: 12 sec (was 41 sec)</text>
+      </svg>
+    </div>
+
+    <!-- Scenario Cards -->
+    <div class="scenarios">
+      <div class="card">
+        <div class="card-label emerald">SCENARIO A — Happy Path</div>
+        <h3>"Research volcanoes" → geology mode</h3>
+        <p>Gatekeeper scans keywords: "research" + "volcanoes" → <strong style="color:#34d399">research mode, score 4</strong>. Moves 91 books to back room. Librarian recites 19 books in 12 seconds instead of 110 books in 41 seconds. Pure savings on every turn.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-label cyan">SCENARIO B — Unsure Visitor</div>
+        <h3>"Uhh, just looking around" → all mode</h3>
+        <p>Gatekeeper scans: no clear signal. <strong style="color:#22d3ee">Score below 1 → all mode</strong>. Does nothing. All 110 books stay on shelves. Librarian recites everything. Safe default — better to waste tokens than hide a book the visitor might need.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-label rose">SCENARIO C — Sudden Swerve</div>
+        <h3>Mid-research, needs calendar → mode switch</h3>
+        <p>Gatekeeper notices confusion. Taps your shoulder: <strong style="color:#fb7185">"Switch to admin section?"</strong> You say yes. 30 sec to rearrange shelves. Calendar checked. 30 sec to put geology back. Four turns of overhead for one calendar lookup. The price of specialization.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-label amber">SCENARIO D — Two at Once</div>
+        <h3>Two visitors, two gatekeepers → file lock</h3>
+        <p>Visitor A wants volcanoes. Visitor B wants French cooking. Both gatekeepers reach for shelves. <strong style="color:#fbbf24">Lock on the storage room door</strong> prevents chaos — only one can move books at a time. But Visitor B's librarian may recite a stale catalog. Re-scan needed.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-label violet">SCENARIO E — Trip and Fall</div>
+        <h3>Gatekeeper crashes mid-sprint → in_progress flag</h3>
+        <p>Halfway through moving books. Falls. Books scattered. Gets up, checks clipboard: <strong style="color:#a78bfa">in_progress: true</strong>. Refuses to continue. Points to big red reset button. Everything back on shelves. Try again. No books lost.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-label orange">SCENARIO F — Wrong Guess</div>
+        <h3>"Volcanic security vulnerabilities" → misclassified</h3>
+        <p>Sees "security" → guesses cybersecurity. Moves geology to back room. Librarian has no volcano books. <strong style="color:#fb923c">Failure is immediate and visible.</strong> Reset button. All 110 books return. Fail-safe by design.</p>
+      </div>
+    </div>
+
+    <p class="footer">
+      Skill Gatekeeper for Hermes Agent · The Library Analogy · github.com/niel-sg/skill-gatekeeper
+    </p>
+  </div>
+</body>
+</html>

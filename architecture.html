@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Skill Gatekeeper Architecture</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'JetBrains Mono', monospace;
+      background: #020617;
+      min-height: 100vh;
+      padding: 2rem;
+      color: white;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .header { margin-bottom: 2rem; }
+    .header-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem; }
+    .pulse-dot { width: 12px; height: 12px; background: #22d3ee; border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.025em; }
+    .subtitle { color: #94a3b8; font-size: 0.875rem; margin-left: 1.75rem; }
+    .diagram-container {
+      background: rgba(15, 23, 42, 0.5);
+      border-radius: 1rem;
+      border: 1px solid #1e293b;
+      padding: 1.5rem;
+      overflow-x: auto;
+    }
+    svg { width: 100%; min-width: 1000px; display: block; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-top: 2rem; }
+    .card { background: rgba(15, 23, 42, 0.5); border-radius: 0.75rem; border: 1px solid #1e293b; padding: 1.25rem; }
+    .card-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .card-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .card-dot.cyan { background: #22d3ee; }
+    .card-dot.emerald { background: #34d399; }
+    .card-dot.violet { background: #a78bfa; }
+    .card-dot.amber { background: #fbbf24; }
+    .card-dot.rose { background: #fb7185; }
+    .card h3 { font-size: 0.875rem; font-weight: 600; }
+    .card ul { list-style: none; color: #94a3b8; font-size: 0.75rem; }
+    .card li { margin-bottom: 0.375rem; }
+    .footer { text-align: center; margin-top: 1.5rem; color: #475569; font-size: 0.75rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="header-row">
+        <div class="pulse-dot"></div>
+        <h1>Skill Gatekeeper Architecture</h1>
+      </div>
+      <p class="subtitle">Mode-based skill filtering for AI agents — 110→17 skills, 32% smaller system prompt</p>
+    </div>
+
+    <div class="diagram-container">
+      <svg viewBox="0 0 1100 820">
+        <defs>
+          <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
+          </marker>
+          <marker id="arrow-cyan" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#22d3ee" />
+          </marker>
+          <marker id="arrow-emerald" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#34d399" />
+          </marker>
+          <marker id="arrow-rose" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#fb7185" />
+          </marker>
+          <marker id="arrow-amber" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#fbbf24" />
+          </marker>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+          </pattern>
+        </defs>
+
+        <rect width="100%" height="100%" fill="url(#grid)" />
+
+        <!-- ═══════════════════════════════════════════════════════
+             GATEKEEPER BOUNDARY (Security Group)
+             ═══════════════════════════════════════════════════════ -->
+        <rect x="240" y="50" width="580" height="430" rx="12" fill="rgba(45, 212, 191, 0.03)" stroke="#2dd4bf" stroke-width="1" stroke-dasharray="8,4"/>
+        <text x="258" y="72" fill="#2dd4bf" font-size="10" font-weight="600">Skill Gatekeeper (in-agent process)</text>
+
+        <!-- ═══════════════════════════════════════════════════════
+             USER MESSAGE (External)
+             ═══════════════════════════════════════════════════════ -->
+        <rect x="30" y="120" width="160" height="70" rx="8" fill="#0f172a" stroke="#94a3b8" stroke-width="1.5"/>
+        <rect x="30" y="120" width="160" height="70" rx="8" fill="rgba(30, 41, 59, 0.5)" stroke="none"/>
+        <text x="110" y="148" fill="white" font-size="12" font-weight="600" text-anchor="middle">User Message</text>
+        <text x="110" y="166" fill="#94a3b8" font-size="9" text-anchor="middle">"Research latest CVEs"</text>
+        <text x="110" y="180" fill="#64748b" font-size="8" text-anchor="middle">via Telegram / CLI</text>
+
+        <!-- Arrow: User → Scoring -->
+        <line x1="190" y1="155" x2="258" y2="155" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+        <!-- ═══════════════════════════════════════════════════════
+             KEYWORD SCORING ENGINE (Backend)
+             ═══════════════════════════════════════════════════════ -->
+        <rect x="280" y="100" width="180" height="90" rx="8" fill="#0f172a" stroke="#34d399" stroke-width="1.5"/>
+        <rect x="280" y="100" width="180" height="90" rx="8" fill="rgba(6, 78, 59, 0.4)" stroke="none"/>
+        <text x="370" y="125" fill="white" font-size="11" font-weight="600" text-anchor="middle">Keyword Scoring</text>
+        <text x="370" y="143" fill="#94a3b8" font-size="8" text-anchor="middle">research: cve, threat, arxiv...</text>
+        <text x="370" y="157" fill="#94a3b8" font-size="8" text-anchor="middle">dev: code, debug, python...</text>
+        <text x="370" y="171" fill="#94a3b8" font-size="8" text-anchor="middle">gaming: game, minecraft...</text>
+        <text x="370" y="185" fill="#34d399" font-size="7" text-anchor="middle">zero API calls · sub-millisecond</text>
+
+        <!-- Arrow: Scoring → Detection -->
+        <line x1="370" y1="190" x2="370" y2="218" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrow-emerald)"/>
+        <text x="382" y="208" fill="#34d399" font-size="8">"research:4, dev:1"</text>
+
+        <!-- ═══════════════════════════════════════════════════════
+             MODE DETECTION (Security — decision point)
+             ═══════════════════════════════════════════════════════ -->
+        <rect x="310" y="220" width="120" height="65" rx="8" fill="#0f172a" stroke="#fb7185" stroke-width="1.5"/>
+        <rect x="310" y="220" width="120" height="65" rx="8" fill="rgba(136, 19, 55, 0.4)" stroke="none"/>
+        <text x="370" y="245" fill="white" font-size="11" font-weight="600" text-anchor="middle">Threshold</text>
+        <text x="370" y="262" fill="#fb7185" font-size="12" font-weight="700" text-anchor="middle">score ≥ 1?</text>
+        <text x="370" y="278" fill="#94a3b8" font-size="8" text-anchor="middle">MIN_AUTO_SCORE</text>
+
+        <!-- NO PATH (left) → all mode -->
+        <line x1="310" y1="252" x2="250" y2="350" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+        <text x="225" y="310" fill="#64748b" font-size="8" transform="rotate(-45, 225, 310)">NO</text>
+
+        <!-- YES PATH (down) → filesystem -->
+        <line x1="370" y1="285" x2="370" y2="318" stroke="#fb7185" stroke-width="1.5" marker-end="url(#arrow-rose)"/>
+        <text x="382" y="305" fill="#fb7185" font-size="8">YES</text>
+
+        <!-- ALL MODE BOX (when NO) -->
+        <rect x="150" y="350" width="200" height="55" rx="8" fill="#0f172a" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4,4"/>
+        <rect x="150" y="350" width="200" height="55" rx="8" fill="rgba(30, 41, 59, 0.3)" stroke="none"/>
+        <text x="250" y="375" fill="#94a3b8" font-size="11" font-weight="600" text-anchor="middle">Mode: all</text>
+        <text x="250" y="393" fill="#64748b" font-size="9" text-anchor="middle">110 skills loaded · no change</text>
+
+        <!-- Arrow from all → normal flow -->
+        <line x1="250" y1="405" x2="250" y2="740" stroke="#64748b" stroke-width="1.5" stroke-dasharray="5,5"/>
+        <line x1="250" y1="740" x2="330" y2="740" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+        <!-- ═══════════════════════════════════════════════════════
+             FILESYSTEM MANAGER (Backend)
+             ═══════════════════════════════════════════════════════ -->
+        <rect x="310" y="320" width="120" height="80" rx="8" fill="#0f172a" stroke="#34d399" stroke-width="1.5"/>
+        <rect x="310" y="320" width="120" height="80" rx="8" fill="rgba(6, 78, 59, 0.4)" stroke="none"/>
+        <text x="370" y="345" fill="white" font-size="11" font-weight="600" text-anchor="middle">Filesystem</text>
+        <text x="370" y="363" fill="#94a3b8" font-size="9" text-anchor="middle">shutil.move()</text>
+        <text x="370" y="379" fill="#94a3b8" font-size="8" text-anchor="middle">O(1) per skill</text>
+        <text x="370" y="394" fill="#34d399" font-size="7" text-anchor="middle">atomic rename</text>
+
+        <!-- Arrow: Filesystem → Skills Dir -->
+        <line x1="430" y1="360" x2="498" y2="300" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrow-emerald)"/>
+        <text x="470" y="322" fill="#34d399" font-size="7">enable</text>
+
+        <!-- Arrow: Filesystem → Disabled Dir -->
+        <line x1="430" y1="375" x2="498" y2="420" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrow-amber)"/>
+        <text x="470" y="408" fill="#fbbf24" font-size="7">disable</text>
+
+        <!-- ═══════════════════════════════════════════════════════
+             SKILLS DIRECTORY (Database)
+             ═══════════════════════════════════════════════════════ -->
+        <rect x="500" y="220" width="200" height="90" rx="8" fill="#0f172a" stroke="#a78bfa" stroke-width="1.5"/>
+        <rect x="500" y="220" width="200" height="90" rx="8" fill="rgba(76, 29, 149, 0.4)" stroke="none"/>
+        <text x="600" y="245" fill="white" font-size="11" font-weight="600" text-anchor="middle">skills/ (active)</text>
+        <text x="600" y="265" fill="#94a3b8" font-size="8" text-anchor="middle">research/arxiv/</text>
+        <text x="600" y="279" fill="#94a3b8" font-size="8" text-anchor="middle">research/threat-intel/</text>
+        <text x="600" y="293" fill="#94a3b8" font-size="8" text-anchor="middle">media/youtube-content/</text>
+        <text x="600" y="307" fill="#a78bfa" font-size="7" text-anchor="middle">17 dirs · 17 SKILL.md</text>
+
+        <!-- ═══════════════════════════════════════════════════════
+             SKILLS-DISABLED DIRECTORY (Cloud/Storage)
+             ═══════════════════════════════════════════════════════ -->
+        <rect x="500" y="370" width="200" height="90" rx="8" fill="#0f172a" stroke="#fbbf24" stroke-width="1.5"/>
+        <rect x="500" y="370" width="200" height="90" rx="8" fill="rgba(120, 53, 15, 0.3)" stroke="none"/>
+        <text x="600" y="395" fill="white" font-size="11" font-weight="600" text-anchor="middle">skills-disabled/</text>
+        <text x="600" y="415" fill="#94a3b8" font-size="8" text-anchor="middle">gaming/minecraft/</text>
+        <text x="600" y="429" fill="#94a3b8" font-size="8" text-anchor="middle">creative/ascii-art/</text>
+        <text x="600" y="443" fill="#94a3b8" font-size="8" text-anchor="middle">email/himalaya/</text>
+        <text x="600" y="457" fill="#fbbf24" font-size="7" text-anchor="middle">94 dirs · preserved structure</text>
+
+        <!-- Arrow: skills/ → /reload-skills -->
+        <line x1="600" y1="310" x2="600" y2="540" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+        <!-- ═══════════════════════════════════════════════════════
+             /RELOAD-SKILLS (Frontend — user action)
+             ═══════════════════════════════════════════════════════ -->
+        <rect x="500" y="545" width="200" height="65" rx="8" fill="#0f172a" stroke="#22d3ee" stroke-width="1.5"/>
+        <rect x="500" y="545" width="200" height="65" rx="8" fill="rgba(8, 51, 68, 0.4)" stroke="none"/>
+        <text x="600" y="573" fill="white" font-size="11" font-weight="600" text-anchor="middle">/reload-skills</text>
+        <text x="600" y="591" fill="#94a3b8" font-size="9" text-anchor="middle">User slash command</text>
+        <text x="600" y="605" fill="#22d3ee" font-size="7" text-anchor="middle">rescans skills/ directory</text>
+
+        <!-- Arrow: /reload → Result -->
+        <line x1="600" y1="610" x2="600" y2="680" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrow-cyan)"/>
+
+        <!-- ═══════════════════════════════════════════════════════
+             RESULT (Frontend)
+             ═══════════════════════════════════════════════════════ -->
+        <rect x="450" y="685" width="300" height="70" rx="10" fill="#0f172a" stroke="#22d3ee" stroke-width="2"/>
+        <rect x="450" y="685" width="300" height="70" rx="10" fill="rgba(8, 51, 68, 0.5)" stroke="none"/>
+        <text x="600" y="715" fill="#22d3ee" font-size="13" font-weight="700" text-anchor="middle">Next Turn: 17 skills loaded</text>
+        <text x="600" y="736" fill="#94a3b8" font-size="10" text-anchor="middle">System prompt ~32% smaller · saves ~2,300 tokens/turn</text>
+        <text x="600" y="750" fill="#22d3ee" font-size="8" text-anchor="middle">same agent · same memory · same conversation</text>
+
+        <!-- ═══════════════════════════════════════════════════════
+             MODE LEGEND (left side, below user message)
+             ═══════════════════════════════════════════════════════ -->
+        <text x="40" y="240" fill="#64748b" font-size="9" font-weight="600">DETECTION MODES</text>
+        <rect x="40" y="252" width="12" height="12" rx="2" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1"/>
+        <text x="58" y="262" fill="#94a3b8" font-size="8">research</text><text x="130" y="262" fill="#64748b" font-size="8">17 skills</text>
+        <rect x="40" y="270" width="12" height="12" rx="2" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1"/>
+        <text x="58" y="280" fill="#94a3b8" font-size="8">gaming</text><text x="130" y="280" fill="#64748b" font-size="8">~12 skills</text>
+        <rect x="40" y="288" width="12" height="12" rx="2" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1"/>
+        <text x="58" y="298" fill="#94a3b8" font-size="8">dev</text><text x="130" y="298" fill="#64748b" font-size="8">38 skills</text>
+        <rect x="40" y="306" width="12" height="12" rx="2" fill="rgba(120, 53, 15, 0.3)" stroke="#fbbf24" stroke-width="1"/>
+        <text x="58" y="316" fill="#94a3b8" font-size="8">creative</text><text x="130" y="316" fill="#64748b" font-size="8">27 skills</text>
+        <rect x="40" y="324" width="12" height="12" rx="2" fill="rgba(136, 19, 55, 0.4)" stroke="#fb7185" stroke-width="1"/>
+        <text x="58" y="334" fill="#94a3b8" font-size="8">productivity</text><text x="130" y="334" fill="#64748b" font-size="8">26 skills</text>
+        <rect x="40" y="342" width="12" height="12" rx="2" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1"/>
+        <text x="58" y="352" fill="#94a3b8" font-size="8">all</text><text x="130" y="352" fill="#64748b" font-size="8">110 skills</text>
+
+        <!-- ═══════════════════════════════════════════════════════
+             LEGEND (top-right)
+             ═══════════════════════════════════════════════════════ -->
+        <text x="770" y="72" fill="white" font-size="10" font-weight="600">Component Legend</text>
+        <rect x="770" y="84" width="14" height="10" rx="2" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1"/>
+        <text x="790" y="92" fill="#94a3b8" font-size="8">External Input</text>
+        <rect x="770" y="100" width="14" height="10" rx="2" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1"/>
+        <text x="790" y="108" fill="#94a3b8" font-size="8">Processing Logic</text>
+        <rect x="770" y="116" width="14" height="10" rx="2" fill="rgba(136, 19, 55, 0.4)" stroke="#fb7185" stroke-width="1"/>
+        <text x="790" y="124" fill="#94a3b8" font-size="8">Decision Point</text>
+        <rect x="770" y="132" width="14" height="10" rx="2" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1"/>
+        <text x="790" y="140" fill="#94a3b8" font-size="8">Data Store</text>
+        <rect x="770" y="148" width="14" height="10" rx="2" fill="rgba(120, 53, 15, 0.3)" stroke="#fbbf24" stroke-width="1"/>
+        <text x="790" y="156" fill="#94a3b8" font-size="8">Cold Storage</text>
+        <rect x="770" y="164" width="14" height="10" rx="2" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1"/>
+        <text x="790" y="172" fill="#94a3b8" font-size="8">User Action</text>
+        <line x1="770" y1="184" x2="784" y2="184" stroke="#64748b" stroke-width="1" stroke-dasharray="5,5"/>
+        <text x="790" y="187" fill="#94a3b8" font-size="8">No-op path</text>
+        <rect x="770" y="194" width="14" height="10" rx="2" fill="transparent" stroke="#2dd4bf" stroke-width="1" stroke-dasharray="8,4"/>
+        <text x="790" y="202" fill="#94a3b8" font-size="8">Process Boundary</text>
+
+        <!-- ═══════════════════════════════════════════════════════
+             FAILURE RECOVERY (bottom-right note)
+             ═══════════════════════════════════════════════════════ -->
+        <text x="830" y="690" fill="#64748b" font-size="9" font-weight="600">RECOVERY</text>
+        <text x="830" y="706" fill="#94a3b8" font-size="8">python3 skill-gatekeeper.py --reset</text>
+        <text x="830" y="720" fill="#64748b" font-size="7">Restores all 110 skills instantly</text>
+        <text x="830" y="734" fill="#64748b" font-size="7">Nothing is ever deleted</text>
+      </svg>
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot emerald"></div>
+          <h3>Detection Engine</h3>
+        </div>
+        <ul>
+          <li>• Keyword scoring — zero API calls</li>
+          <li>• 9 modes, ~45 keywords each</li>
+          <li>• Multi-word phrases: all words must match</li>
+          <li>• Sub-millisecond latency</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot violet"></div>
+          <h3>Filesystem Manager</h3>
+        </div>
+        <ul>
+          <li>• shutil.move() — atomic on same FS</li>
+          <li>• Preserves directory structure</li>
+          <li>• O(1) per skill operation</li>
+          <li>• State persisted to JSON</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot rose"></div>
+          <h3>Safety Guarantees</h3>
+        </div>
+        <ul>
+          <li>• Files moved, never deleted</li>
+          <li>• --reset restores everything</li>
+          <li>• Score &lt; 2 → falls back to all</li>
+          <li>• Agent cannot self-modify config</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="footer">
+      Skill Gatekeeper for Hermes Agent • 500 lines of Python • MIT License
+    </p>
+  </div>
+</body>
+</html>
