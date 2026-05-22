@@ -1,14 +1,20 @@
 # Skill Gatekeeper for Hermes Agent
 
-**Auto-switch active skills by detected mode. Cuts system prompt tokens by 65-85%.**
+**Auto-switch active skills by detected mode. Cuts system prompt tokens by ~32%.**
 
 Hermes loads every installed skill into the system prompt on every turn. At 110 skills, that's ~8,000-12,000 wasted tokens. The gatekeeper detects your mode from your message and keeps only the relevant skills — same agent, same memory, trimmer prompt.
+
+## 🎨 Visual Demos
+
+See the architecture in action:
+- **[Architecture Diagram](https://zerodaybrief.blog/articles/skill-gatekeeper/architecture.html)** — How keyword detection routes to mode switching
+- **[Library Analogy](https://zerodaybrief.blog/articles/skill-gatekeeper/library.html)** — Visual metaphor: why loading all 110 skills is like a library kiosk reading every book title aloud
 
 ## Quick Start
 
 ```bash
 # Clone
-git clone https://github.com/niel-sg/skill-gatekeeper.git
+git clone https://github.com/jayelbotvibe-web/skill-gatekeeper.git
 cd skill-gatekeeper
 
 # Install (creates skill directory + symlinks script)
@@ -34,13 +40,12 @@ python3 skill-gatekeeper.py --reset
 | Mode | Skills | Example prompt |
 |------|--------|---------------|
 | `research` | ~19 | "Research latest CVEs" |
-| `gaming` | ~12 | "Host a modded Minecraft server" |
-| `creative` | ~27 | "Design a landing page" |
 | `dev` | ~38 | "Fix this Python bug" |
+| `creative` | ~27 | "Design a landing page" |
 | `productivity` | ~26 | "Schedule my workout" |
 | `data` | ~10 | "Train this model" |
 | `infra` | ~18 | "Check Docker containers" |
-| `gaming` | ~3 | "Setup Minecraft server" |
+| `gaming` | ~12 | "Host a modded Minecraft server" |
 | `social` | ~4 | "Post to Twitter" |
 | `all` | All | Default, all skills loaded |
 
@@ -52,10 +57,9 @@ Tested on 50 prompts spanning all modes with threshold=1:
 
 | Metric | Value |
 |--------|-------|
-| Overall accuracy | **92%** (45/49, 1 untestable) |
+| Overall accuracy | **92%** (46/50) |
 | Research | 100% (12/12) |
 | Creative | 100% (8/8) |
-| Podcast | 88% (7/8) |
 | Dev | 83% (10/12) |
 | Productivity | 83% (5/6) |
 | False positives (neutral→wrong mode) | **0** |
@@ -132,7 +136,7 @@ Hermes profiles isolate skill sets but fragment context — separate conversatio
 
 ## Why Not an LLM Classifier?
 
-Classifying the mode with an LLM would be more accurate. But it would also consume tokens — defeating the purpose. Keyword scoring is deterministic, instantaneous, and free. It's right ~80% of the time, and the failure mode (switching to the wrong mode) is visible and one command away from fixed.
+Classifying the mode with an LLM would be more accurate. But it would also consume tokens — defeating the purpose. Keyword scoring is deterministic, instantaneous, and free. It's right ~92% of the time, and the failure mode (switching to the wrong mode) is visible and one command away from fixed.
 
 ## License
 
