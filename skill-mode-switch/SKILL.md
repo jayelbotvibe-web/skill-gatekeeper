@@ -1,7 +1,7 @@
 ---
 name: skill-mode-switch
 description: "Auto-switch active Hermes skills by detected mode (research/dev/creative). Verified 92% detection accuracy. Cuts system prompt by 26-37% (83% fewer skills loaded). Empirically verified on Hermes v0.13+."
-version: 1.2.0
+version: 1.4.0
 category: devops
 ---
 
@@ -114,6 +114,20 @@ python3 skill-gatekeeper.py --list
 ```bash
 python3 skill-gatekeeper.py --reset          # Restores all 112, keeps default_mode
 ```
+
+### Diagnostic log review
+```bash
+python3 skill-gatekeeper.py --review         # 7-day diagnostic report (default)
+python3 skill-gatekeeper.py --review 14      # 14-day window
+```
+
+Every state change (BOOT, SWITCH, DETECT, RESET, errors) is logged to `logs/gatekeeper.log` with UTC timestamps. `--review` parses the log and shows:
+- Total events by type (boots, switches, resets, no-ops, errors)
+- BOOT mode distribution
+- Boot gap analysis (>60min gaps flagged)
+- Error timeline
+
+Use this to scientifically verify the gatekeeper is working over time — no guessing, no spot checks.
 
 ## Agent Workflow
 

@@ -13,6 +13,7 @@ Usage:
     python3 skill-gatekeeper.py --reset            # Restore ALL skills temporarily
     python3 skill-gatekeeper.py --set-default dev  # Set persistent default mode
     python3 skill-gatekeeper.py --boot             # Reapply saved default mode
+    python3 skill-gatekeeper.py --review           # Diagnostic log review
 """
 
 import os
@@ -30,6 +31,21 @@ SKILLS_DIR = _HERMES_HOME / "skills"
 DISABLED_DIR = _HERMES_HOME / "skills-disabled"
 STATE_FILE = _HERMES_HOME / ".skill-gatekeeper-state.json"
 LOCK_FILE = _HERMES_HOME / ".skill-gatekeeper.lock"
+LOG_FILE = _HERMES_HOME / "logs" / "gatekeeper.log"
+
+# ─── Logging ─────────────────────────────────────────────────────────
+
+from datetime import datetime, timezone
+
+def _log(event: str, details: str = "") -> None:
+    """Append a timestamped entry to the diagnostic log."""
+    LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    line = f"[{ts}] {event}"
+    if details:
+        line += f" | {details}"
+    with open(LOG_FILE, "a") as f:
+        f.write(line + "\n")
 
 # ─── Mode → Skill Mappings ───────────────────────────────────────────
 
@@ -564,6 +580,90 @@ def reset_all() -> dict:
     return {"mode": "all", "active_count": len(all_skills)}
 
 
+# ─── Review ──────────────────────────────────────────────────────────
+
+def review_log(days: int = 7) -> str:
+    """Parse the log and return a diagnostic report for the last N days."""
+    if not LOG_FILE.exists():
+        return "No log file found — gatekeeper has not logged any events yet."
+
+    cutoff = datetime.now(timezone.utc).timestamp() - (days * 86400)
+    events = []
+    with open(LOG_FILE) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                ts_str = line[1:21]  # [YYYY-MM-DDTHH:MM:SSZ]
+                ts = datetime.strptime(ts_str, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc).timestamp()
+                if ts < cutoff:
+                    continue
+                event = line[23:].split(" | ", 1)
+                events.append({"ts": ts, "event": event[0], "details": event[1] if len(event) > 1 else ""})
+            except (ValueError, IndexError):
+                continue
+
+    if not events:
+        return f"No events in the last {days} days."
+
+    boots = [e for e in events if e["event"] == "BOOT"]
+    switches = [e for e in events if e["event"] in ("SWITCH", "DETECT_SWITCH")]
+    errors = [e for e in events if "ERROR" in e["event"]]
+    resets = [e for e in events if e["event"] == "RESET"]
+    noops = [e for e in events if "NOOP" in e["event"]]
+
+    # Mode distribution from boots
+    mode_counts = {}
+    for b in boots:
+        detail = b["details"]
+        for part in detail.split():
+            if part.startswith("mode="):
+                mode_counts[part[5:]] = mode_counts.get(part[5:], 0) + 1
+
+    # Boot gap analysis (alert if gap > 60 min)
+    boot_gaps = []
+    sorted_boots = sorted(boots, key=lambda x: x["ts"])
+    for i in range(1, len(sorted_boots)):
+        gap_min = (sorted_boots[i]["ts"] - sorted_boots[i-1]["ts"]) / 60
+        if gap_min > 60:
+            boot_gaps.append(gap_min)
+
+    report = []
+    report.append(f"╔══════════════════════════════════════════╗")
+    report.append(f"║  Gatekeeper Diagnostic Report ({days}d)   ║")
+    report.append(f"╚══════════════════════════════════════════╝")
+    report.append("")
+    report.append(f"Total events:      {len(events)}")
+    report.append(f"  BOOT cycles:     {len(boots)}")
+    report.append(f"  Mode switches:   {len(switches)}")
+    report.append(f"  Resets:          {len(resets)}")
+    report.append(f"  No-op detects:   {len(noops)}")
+    report.append(f"  Errors:          {len(errors)}")
+    report.append("")
+    if mode_counts:
+        report.append("BOOT mode distribution:")
+        for mode, count in sorted(mode_counts.items(), key=lambda x: -x[1]):
+            report.append(f"  {mode}: {count}")
+    if boot_gaps:
+        report.append("")
+        report.append(f"⚠ Boot gaps > 60min: {len(boot_gaps)}")
+        for g in boot_gaps:
+            report.append(f"  {g:.0f}min gap — cron may have missed a cycle")
+    if errors:
+        report.append("")
+        report.append("⚠ Errors:")
+        for e in errors:
+            report.append(f"  [{datetime.fromtimestamp(e['ts'], tz=timezone.utc).strftime('%Y-%m-%d %H:%M')}Z] {e['event']}: {e['details']}")
+    if not boot_gaps and not errors:
+        report.append("✓ No anomalies detected. Gatekeeper is healthy.")
+    report.append("")
+    report.append(f"Log file: {LOG_FILE}")
+    report.append(f"Review period: last {days} days")
+
+    return "\n".join(report)
+
+
 # ─── CLI ─────────────────────────────────────────────────────────────
 
 def main():
@@ -583,8 +683,20 @@ def main():
             print(f"  {s}")
         return
 
+    if arg == "--review":
+        days = 7
+        if len(sys.argv) > 2:
+            try:
+                days = int(sys.argv[2])
+            except ValueError:
+                print(f"Invalid days: {sys.argv[2]}")
+                sys.exit(1)
+        print(review_log(days))
+        return
+
     if arg == "--reset":
         result = reset_all()
+        _log("RESET", f"restored all {result['active_count']} skills")
         print(f"✓ Reset to all mode — {result['active_count']} skills active")
         print("Run /reload-skills in Hermes to pick up changes.")
         return
@@ -594,11 +706,15 @@ def main():
         default = state.get("default_mode", "all")
         print(f"Default mode: {default}")
         if default == "all":
+            _log("BOOT", "no default mode set — skipped")
             print("No default mode set — all skills active.")
             return
         result = switch_mode(default)
         if result.get("error"):
+            _log("BOOT_ERROR", f"mode={default} error={result.get('error')}")
             return
+        _log("BOOT", f"mode={default} active={result['active_total']} "
+             f"enabled={result['enabled']} disabled={result['disabled']}")
         print(f"✓ Booted to {default} — {result['active_total']} active "
               f"({result['enabled']} enabled, {result['disabled']} disabled)")
         return
@@ -615,6 +731,7 @@ def main():
         old = get_state()
         current_skills = get_active_skills() if old.get("mode") == "all" else set()
         _save_state(old.get("mode", "all"), current_skills, default_mode=mode)
+        _log("SET_DEFAULT", f"mode={mode}")
         print(f"✓ Default mode set to {mode} (will auto-apply on --boot)")
         return
 
@@ -629,11 +746,16 @@ def main():
         if mode != "all":
             result = switch_mode(mode)
             if result.get("error"):
+                _log("DETECT_ERROR", f"detected={mode} error={result.get('error')}")
                 return  # Error already printed by switch_mode
+            _log("DETECT_SWITCH", f"detected={mode} scores={dict(scores)} "
+                 f"active={result['active_total']} enabled={result['enabled']} "
+                 f"disabled={result['disabled']}")
             print(f"✓ Switched to {mode} — {result['active_total']} active "
                   f"({result['enabled']} enabled, {result['disabled']} disabled)")
             print("Run /reload-skills in Hermes to pick up changes.")
         else:
+            _log("DETECT_NOOP", f"scores={dict(scores)}")
             print("No strong mode detected — keeping all skills active.")
         return
 
@@ -646,6 +768,8 @@ def main():
 
     result = switch_mode(mode)
     if not result.get("error"):
+        _log("SWITCH", f"mode={mode} active={result['active_total']} "
+             f"enabled={result['enabled']} disabled={result['disabled']}")
         print(f"✓ Switched to {mode} — {result['active_total']} skills active "
               f"({result['enabled']} enabled, {result['disabled']} disabled)")
         print("Run /reload-skills in Hermes to pick up changes.")
