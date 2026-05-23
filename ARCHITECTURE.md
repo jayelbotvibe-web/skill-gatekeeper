@@ -60,6 +60,41 @@ At 110 skills (a realistic number for a mature Hermes installation), this consum
 └─────────────────────────────────────────────────────────┘
 ```
 
+### Persistent Mode Flow
+
+```
+┌─────────────────────────────────────────────────────────┐
+│              User sets default mode (once)                │
+│                                                          │
+│   python3 skill-gatekeeper.py --set-default dev           │
+│                                                          │
+│                      │                                   │
+│                      ▼                                   │
+│   ~/.skill-gatekeeper-mode  →  "dev"                     │
+└─────────────────────┬───────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────┐
+│               Cron / Daemon (every 30min)                 │
+│                                                          │
+│   python3 skill-gatekeeper.py --boot                     │
+│                                                          │
+│   Reads "dev" from mode file                             │
+│   Moves all non-dev skills → skills-disabled/            │
+│   Moves all dev-mode skills → skills/                    │
+└─────────────────────┬───────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────┐
+│              Gateway restart? No problem.                 │
+│                                                          │
+│   Restart → 112 skills → cron fires → 37 skills          │
+│   Max 30-minute window of full catalog.                  │
+│                                                          │
+│   User runs /reload-skills → trimmed prompt is back.     │
+└─────────────────────────────────────────────────────────┘
+```
+
 ## Mode Detection Algorithm
 
 ### Keyword Scoring
@@ -123,6 +158,50 @@ When re-enabling a skill, the reverse move happens. If both directories exist (e
 
 State is persisted to `/opt/data/.skill-gatekeeper-state.json` for inspection.
 
+### Persistent Default Mode
+
+The gatekeeper supports persisting a default mode across sessions and gateway restarts:
+
+**Mode file:** `~/.skill-gatekeeper-mode` — a plaintext file containing the mode name (e.g., `dev`).
+
+**Commands:**
+
+| Command | Behavior |
+|---------|----------|
+| `--set-default <mode>` | Writes mode to `~/.skill-gatekeeper-mode`, then applies it immediately |
+| `--boot` | Reads saved mode from file and re-applies (moves skills back to active state) |
+| `--reset` | Temporarily restores ALL skills but **preserves** the saved default mode |
+
+**Design rationale:** Hermes has no startup hook for running scripts. The gatekeeper cannot automatically trim skills when Hermes starts or when a gateway restart bloats the directory back to 112. The `--boot` command bridges this gap — run it on a cron schedule (every 30 minutes) so that even after an unplanned restart, the skills directory converges back to the user's preferred mode within half an hour.
+
+**Recovery from catastrophic crash (skills-disabled/ lost):** `--boot` re-creates the `skills-disabled/` directory if missing and moves all mode-inactive skills there. This means even if someone deletes `skills-disabled/`, the next boot cycle repairs the state.
+
+**Cron integration:**
+```bash
+# Every 30 minutes, reapply the saved default mode
+*/30 * * * * cd /opt/data && python3 scripts/skill-gatekeeper.py --boot
+```
+
+**Flow after gateway restart:**
+```
+Gateway restart
+    │
+    ▼
+Hermes loads all 112 skills (directory was reset/flushed)
+    │
+    ▼  (within 30 minutes)
+Cron fires --boot → reads ~/.skill-gatekeeper-mode → "dev"
+    │
+    ▼
+91 skills moved to skills-disabled/, 37 skills active
+    │
+    ▼
+User runs /reload-skills (or cron notifies them)
+    │
+    ▼
+System prompt is trimmed again
+```
+
 ## Failure Modes
 
 | Failure | Detection | Recovery |
@@ -132,6 +211,9 @@ State is persisted to `/opt/data/.skill-gatekeeper-state.json` for inspection.
 | Permission denied | `shutil.move` raises | Check file ownership (Hermes runs as non-root) |
 | Skills directory not found | Script exits with error | Verify `SKILLS_DIR` path in script |
 | Hermes changes skill discovery | Gatekeeper silently breaks | Requires update to match new Hermes API |
+| Default mode file missing | `--boot` exits with "No default mode set" | Run `--set-default <mode>` |
+| skills-disabled/ deleted | `--boot` re-creates it and re-trims | Automatic — `--boot` handles recovery |
+| Gateway restart flushes directory | All 112 skills loaded until next `--boot` | Cron fires within 30min, restores trim |
 
 ## Known Limitations
 
@@ -140,6 +222,10 @@ State is persisted to `/opt/data/.skill-gatekeeper-state.json` for inspection.
 The gatekeeper depends on Hermes discovering skills by scanning `$HERMES_HOME/skills/` for `SKILL.md` files. This is an implementation detail of Hermes's current skill discovery mechanism, not a stable API. If Hermes moves to a database-backed skill registry, a manifest file, or an API-based discovery system, the gatekeeper will break.
 
 The fix (if Hermes ever provides one) would be an abstraction layer — a skill registry API that the gatekeeper calls instead of manipulating files directly. For now, the gatekeeper is explicitly coupled to the current filesystem-based discovery. This is documented so users know the dependency.
+
+### Boot Gap (30-minute window)
+
+After a gateway restart, the skills directory may be fully populated (all 112 skills) until the next cron `--boot` cycle. This is a 0-30 minute window where Hermes loads every skill. The `--boot` command mitigates this by running on a schedule, but there is no event-driven trigger for "Hermes just started — trim skills now." A startup hook in Hermes would eliminate this gap entirely.
 
 ### Cross-Mode Friction
 
