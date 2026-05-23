@@ -51,7 +51,12 @@ python3 skill-gatekeeper.py --set-default dev
 python3 skill-gatekeeper.py --boot
 ```
 
-Add `--boot` to your cron/daemon to auto-trim after restarts. `--reset` now temporarily restores all skills but keeps your default.
+Add `--boot` to your cron/daemon to auto-trim after restarts. Two approaches:
+
+- **System crontab** (if available): `*/30 * * * * python3 /path/to/skill-gatekeeper.py --boot`
+- **Hermes scheduler** (restricted VPS, no crontab): create wrapper script + `cronjob(action='create', no_agent=true, schedule='*/30 * * * *')`
+
+`--reset` now temporarily restores all skills but keeps your default.
 
 ## Modes
 

@@ -176,10 +176,24 @@ The gatekeeper supports persisting a default mode across sessions and gateway re
 
 **Recovery from catastrophic crash (skills-disabled/ lost):** `--boot` re-creates the `skills-disabled/` directory if missing and moves all mode-inactive skills there. This means even if someone deletes `skills-disabled/`, the next boot cycle repairs the state.
 
-**Cron integration:**
+**Cron integration (two approaches):**
+
+*System crontab (if available):*
 ```bash
-# Every 30 minutes, reapply the saved default mode
-*/30 * * * * cd /opt/data && python3 scripts/skill-gatekeeper.py --boot
+*/30 * * * * python3 /opt/data/scripts/skill-gatekeeper.py --boot
+```
+
+*Hermes scheduler (restricted VPS without crontab):*
+```bash
+# 1. Create wrapper script
+cat > ~/scripts/gatekeeper-boot.sh << 'EOF'
+#!/bin/bash
+python3 /opt/data/scripts/skill-gatekeeper.py --boot
+EOF
+chmod +x ~/scripts/gatekeeper-boot.sh
+
+# 2. Schedule: no_agent=true, schedule=*/30 * * * *, script=gatekeeper-boot.sh
+# Zero LLM cost. Silent on success, alerts on failure.
 ```
 
 **Flow after gateway restart:**
@@ -226,6 +240,8 @@ The fix (if Hermes ever provides one) would be an abstraction layer — a skill 
 ### Boot Gap (30-minute window)
 
 After a gateway restart, the skills directory may be fully populated (all 112 skills) until the next cron `--boot` cycle. This is a 0-30 minute window where Hermes loads every skill. The `--boot` command mitigates this by running on a schedule, but there is no event-driven trigger for "Hermes just started — trim skills now." A startup hook in Hermes would eliminate this gap entirely.
+
+On restricted VPS environments without `crontab`, use Hermes' built-in scheduler with `no_agent=true` — a script-only job with zero LLM token cost. The same 30-minute boot cycle applies.
 
 ### Cross-Mode Friction
 

@@ -47,20 +47,31 @@ python3 skill-gatekeeper.py --boot              # Reapply saved default mode
 python3 skill-gatekeeper.py --reset             # Temporarily restore all (keeps default)
 ```
 
-**Cron setup:**
+**Cron setup — two approaches:**
+
+*Approach A: System crontab (if available)*
 ```bash
-# Create wrapper script at ~/.hermes/scripts/gatekeeper-boot.sh
-mkdir -p ~/.hermes/scripts
-cat > ~/.hermes/scripts/gatekeeper-boot.sh << 'EOF'
+(crontab -l 2>/dev/null; echo "*/30 * * * * python3 /opt/data/scripts/skill-gatekeeper.py --boot") | crontab -
+```
+
+*Approach B: Hermes scheduler (crontab not available on restricted VPS)*
+```bash
+# 1. Create wrapper script
+cat > ~/scripts/gatekeeper-boot.sh << 'EOF'
 #!/bin/bash
 python3 /opt/data/scripts/skill-gatekeeper.py --boot
 EOF
-chmod +x ~/.hermes/scripts/gatekeeper-boot.sh
+chmod +x ~/scripts/gatekeeper-boot.sh
 
-# Then create via Hermes cronjob tool: schedule every 30m, no_agent=true
+# 2. Schedule via Hermes cronjob tool — no_agent=true (script-only, zero LLM cost):
+#    schedule: */30 * * * *, script: gatekeeper-boot.sh, no_agent: true
+#    Name: gatekeeper-auto-boot
+#
+# The Hermes scheduler runs the script every 30min. Silent on success (empty stdout),
+# alerts on failure (non-zero exit). No tokens consumed.
 ```
 
-The state file at `~/.skill-gatekeeper-state.json` stores both the current `mode` and the persistent `default_mode`. `--reset` restores all skills to disk but sets `mode: "all"` while keeping `default_mode`. Next `--boot` re-trims.
+The state file at `$HERMES_HOME/.skill-gatekeeper-state.json` (e.g. `/opt/data/.skill-gatekeeper-state.json`) stores both the current `mode` and the persistent `default_mode`. `--reset` restores all skills to disk but sets `mode: "all"` while keeping `default_mode`. Next `--boot` re-trims.
 
 ## Modes
 
