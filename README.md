@@ -2,7 +2,7 @@
 
 **Auto-switch active skills by detected mode. Cuts system prompt tokens by ~32%.**
 
-Hermes loads every installed skill into the system prompt on every turn. At 110 skills, that's ~8,000-12,000 wasted tokens. The gatekeeper detects your mode from your message and keeps only the relevant skills — same agent, same memory, trimmer prompt.
+Hermes loads every installed skill into the system prompt on every turn. At 112 skills, that's ~8,000-12,000 wasted tokens. The gatekeeper detects your mode from your message and keeps only the relevant skills — same agent, same memory, trimmer prompt.
 
 ## 🎨 Visual Demos
 
@@ -12,7 +12,7 @@ See the architecture in action:
 *How keyword detection routes to mode switching — click for interactive version*
 
 [![Library Analogy](library-preview.png)](https://zerodaybrief.blog/articles/skill-gatekeeper/library.html)
-*Why loading all 110 skills is like a library kiosk reading every book title*
+*Why loading all 112 skills is like a library kiosk reading every book title*
 
 ## Quick Start
 
@@ -39,19 +39,34 @@ python3 skill-gatekeeper.py --list
 python3 skill-gatekeeper.py --reset
 ```
 
+## Persistent Default Mode (new!)
+
+Set a default mode that survives resets and gateway restarts:
+
+```bash
+# Set your preferred mode permanently
+python3 skill-gatekeeper.py --set-default dev
+
+# Reapply at any time (cron-friendly)
+python3 skill-gatekeeper.py --boot
+```
+
+Add `--boot` to your cron/daemon to auto-trim after restarts. `--reset` now temporarily restores all skills but keeps your default.
+
 ## Modes
 
 | Mode | Skills | Example prompt |
 |------|--------|---------------|
 | `research` | ~19 | "Research latest CVEs" |
-| `dev` | ~38 | "Fix this Python bug" |
-| `creative` | ~27 | "Design a landing page" |
+| `dev` | ~37 | "Fix this Python bug" |
+| `creative` | ~25 | "Design a landing page" |
 | `productivity` | ~26 | "Schedule my workout" |
+| `podcast` | ~14 | "Publish episode 10" |
 | `data` | ~10 | "Train this model" |
 | `infra` | ~18 | "Check Docker containers" |
-| `gaming` | ~12 | "Host a modded Minecraft server" |
-| `social` | ~4 | "Post to Twitter" |
-| `all` | All | Default, all skills loaded |
+| `gaming` | ~5 | "Host a modded Minecraft server" |
+| `social` | ~6 | "Post to Twitter" |
+| `all` | 112 | Default, all skills loaded |
 
 Ambiguous messages ("hello", "thanks", "what's the weather") fall back to `all` — no skills are removed.
 
@@ -79,15 +94,16 @@ User sends message
     ▼
 Agent detects mode from keyword scoring (zero API calls)
     │
-    ├── Score ≥ 2?  ──▶  Move irrelevant SKILL.md → skills-disabled/
-    │                     Agent: "Switched to research (19 skills). /reload-skills"
+    ├── Score ≥ 1?  ──▶  Move irrelevant SKILL.md → skills-disabled/
+    │                     Saves mode as persistent default
+    │                     Agent: "Switched to research (17 skills). /reload-skills"
     │
-    └── Score < 2?  ──▶  Keep all skills. Proceed normally.
+    └── Score = 0?  ──▶  Keep all skills. Proceed normally.
 
-User runs /reload-skills
+Cron/daemon runs --boot every 30m
     │
     ▼
-Next turn: only relevant skills in system prompt
+Skills directory stays trimmed across gateway restarts
 ```
 
 Read [ARCHITECTURE.md](ARCHITECTURE.md) for design decisions, mode detection algorithm, and customization.
@@ -125,7 +141,8 @@ cp -r skill-mode-switch/ ~/.hermes/skills/devops/skill-mode-switch/
 
 ```bash
 python3 skill-gatekeeper.py --reset
-# → All 110 skills restored. Run /reload-skills.
+# → All 112 skills restored. Default mode preserved.
+# → Run /reload-skills.
 ```
 
 Nothing is ever deleted — skills are moved, not removed.

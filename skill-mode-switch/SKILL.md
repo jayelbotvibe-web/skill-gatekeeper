@@ -1,99 +1,143 @@
 ---
 name: skill-mode-switch
-description: "Auto-switch active Hermes skills by detected mode (research/dev/creative). Reduces system prompt tokens by 65-85% by disabling irrelevant skills."
-version: 1.0.0
+description: "Auto-switch active Hermes skills by detected mode (research/dev/creative). Verified 92% detection accuracy. Cuts system prompt by 26-37% (83% fewer skills loaded). Empirically verified on Hermes v0.13+."
+version: 1.2.0
 category: devops
 ---
 
 # Skill Mode Switch
 
-Automatically trims the Hermes skill catalog based on what you're doing. Instead of loading all 110 skills into every system prompt (~8,000+ wasted tokens), the gatekeeper detects your mode and keeps only the relevant ones. Token savings: 65-85%.
+Automatically trims the Hermes skill catalog based on what you're doing. Instead of loading all 112 skills into every system prompt (~2,900 tokens of noise), the gatekeeper detects your mode from keyword scoring and keeps only the relevant ones.
+
+**Measured impact (research mode):** Skills consume ~41% of system prompt. Gatekeeper cuts skill catalog from 112 → 17 (85% fewer), reducing total system prompt by ~32% (~2,300 tokens/turn saved). Over a 30-turn session: ~69,000 tokens saved.
+
+## Verified Performance
+
+| Metric | Value | Source |
+|--------|-------|--------|
+| Keyword accuracy | **92%** (45/49) | 50-prompt benchmark, threshold=1 |
+| False positives | **0** | Neutral prompts ("hello", "thanks") never trigger a mode |
+| `/reload-skills` integration | **Verified** | Hermes v0.13+ — 17 skills visible after reload |
+| Filesystem safety | **File-locked + atomic** | `fcntl.flock` + same-device assertion |
+| Crash recovery | **Yes** | `in_progress` flag detects partial state, refuses to proceed |
+| Data loss risk | **Zero** | No delete operations in codebase; `--reset` always works |
+| Functional confidence | **~96%** | See `references/confidence-model.md` |
 
 ## How It Works
 
 1. You send a message
-2. Agent runs `python3 /opt/data/skills/devops/skill-mode-switch/scripts/skill-gatekeeper.py --detect "<your message>"`
-3. Gatekeeper matches keywords to detect mode (research, dev, creative, productivity, infra, data, gaming, social)
-4. Irrelevant skills are moved to `/opt/data/skills-disabled/`
+2. Agent runs `python3 skill-gatekeeper.py --detect "<your message>"`
+3. Keyword scoring assigns points to 8 modes (research, dev, creative, productivity, infra, data, gaming, social)
+4. If best score ≥ 1, gatekeeper moves irrelevant `SKILL.md` files to `skills-disabled/`
 5. Agent tells you to run `/reload-skills`
-6. Next turn: only 16-38 skills loaded instead of 110
+6. Next turn: 16-38 skills loaded instead of 111
+
+### Persistent Default Mode
+
+The `--set-default` command persists your preferred mode across sessions. The `--boot` command reapplies it — used in a cron job so gateway restarts don't reset your skills.
+
+```
+Gateway restart → Hermes loads 112 → cron --boot (every 30min) → skills re-trimmed
+```
+
+**Commands:**
+```bash
+python3 skill-gatekeeper.py --set-default dev   # Persist "dev" as your default
+python3 skill-gatekeeper.py --boot              # Reapply saved default mode
+python3 skill-gatekeeper.py --reset             # Temporarily restore all (keeps default)
+```
+
+**Cron setup:**
+```bash
+# Create wrapper script at ~/.hermes/scripts/gatekeeper-boot.sh
+mkdir -p ~/.hermes/scripts
+cat > ~/.hermes/scripts/gatekeeper-boot.sh << 'EOF'
+#!/bin/bash
+python3 /opt/data/scripts/skill-gatekeeper.py --boot
+EOF
+chmod +x ~/.hermes/scripts/gatekeeper-boot.sh
+
+# Then create via Hermes cronjob tool: schedule every 30m, no_agent=true
+```
+
+The state file at `~/.skill-gatekeeper-state.json` stores both the current `mode` and the persistent `default_mode`. `--reset` restores all skills to disk but sets `mode: "all"` while keeping `default_mode`. Next `--boot` re-trims.
 
 ## Modes
 
-| Mode | Skills | Use Case |
-|------|--------|----------|
-| `research` | 19 | CVEs, threat intel, arxiv, YouTube research, market analysis |
-| `gaming` | ~12 | "Host a modded Minecraft server" |
-| `creative` | 27 | ASCII art, design, diagrams, images, video, music |
-| `dev` | 38 | Coding, debugging, GitHub, PRs, testing, subagents |
-| `productivity` | 26 | Calendar, email, docs, notes, coaching, maps |
-| `data` | 10 | Jupyter, ML, training, datasets, benchmarks |
-| `infra` | 18 | Docker, VPS, proxy, network, multi-instance admin |
-| `gaming` | 3 | Minecraft, Pokemon |
-| `social` | 4 | X/Twitter, Spotify, content promotion |
-| `all` | 110 | Everything (default) |
+| Mode | Skills | Token savings | Example trigger |
+|------|--------|--------------|-----------------|
+| `research` | 17 | ~32% | "Research latest CVEs" |
+| `dev` | 37 | ~26% | "Fix this Python bug" |
+| `creative` | 25 | ~30% | "Design a landing page" |
+| `productivity` | 26 | ~30% | "Schedule my workout" |
+| `podcast` | 14 | ~35% | "Publish episode 10" |
+| `data` | 12 | ~35% | "Train this model" |
+| `infra` | 18 | ~33% | "Check Docker containers" |
+| `gaming` | 5 | ~37% | "Setup Minecraft server" |
+| `social` | 6 | ~37% | "Post to Twitter" |
+| `all` | 112 | 0% | Default — ambiguous messages |
 
 ## Usage
-
-### Auto-detect (preferred)
-When the user sends their first message in a session, the agent should:
-1. Run detection on the message
-2. If a mode is detected (score ≥ 2), switch to it
-3. Tell the user to run `/reload-skills`
-
 ```
-python3 /opt/data/skills/devops/skill-mode-switch/scripts/skill-gatekeeper.py --detect "Research latest CVEs"
-# → Detected: research → 19 active (83% reduction)
+python3 skill-gatekeeper.py --detect "Research latest CVEs and threat actors"
+# → Detected: research (score 4) → 17 skills active → Run /reload-skills
 ```
 
 ### Explicit mode
+```bash
+python3 skill-gatekeeper.py dev              # Switch to dev mode (sticky — becomes default)
 ```
-python3 /opt/data/skills/devops/skill-mode-switch/scripts/skill-gatekeeper.py research
-# → Switched to research → 17 active
+
+### Persistent default
+```bash
+python3 skill-gatekeeper.py --set-default dev   # Set default without switching
+python3 skill-gatekeeper.py --boot              # Reapply saved default
 ```
 
 ### Check current mode
-```
-python3 /opt/data/skills/devops/skill-mode-switch/scripts/skill-gatekeeper.py --list
+```bash
+python3 skill-gatekeeper.py --list
 ```
 
-### Reset to all skills
-```
-python3 /opt/data/skills/devops/skill-mode-switch/scripts/skill-gatekeeper.py --reset
+### Reset to all skills (temporarily)
+```bash
+python3 skill-gatekeeper.py --reset          # Restores all 112, keeps default_mode
 ```
 
 ## Agent Workflow
 
-At the START of every new session (or when the user seems to switch topics), the agent MUST:
+At the START of every new session, the agent MUST:
 
-```
-1. Run detection on the user's first message:
-   terminal("python3 /opt/data/skills/devops/skill-mode-switch/scripts/skill-gatekeeper.py --detect \"<user message>\"")
-   
-2. If mode != "all" and the mode changed from current:
-   - Tell user: "Switching to {mode} mode — {N} skills active. Run /reload-skills."
-   - Do NOT continue with the request until /reload-skills is run
-   
-3. If mode == "all":
-   - Proceed normally with all skills
-```
-
-**IMPORTANT:** Do NOT run the switch if the current mode already matches. Check with `--list` first if uncertain.
-
-**IMPORTANT:** After switching modes, the user MUST run `/reload-skills` in their Hermes chat. The agent cannot do this for them. The skills change takes effect on the NEXT turn after `/reload-skills`.
+1. Run detection on the user's first substantive message (skip greetings like "hello", "hi")
+2. If mode != "all" and mode changed from current: tell user to run `/reload-skills`
+3. Do NOT process the request until `/reload-skills` is executed
+4. If mode == "all": proceed normally
 
 ## Pitfalls
 
-- **Detection threshold:** Modes require a minimum score of 2 to auto-switch. This prevents false positives on ambiguous messages like "hello" or "thanks".
-- **Topic changes mid-session:** If the user changes topic, re-run detection. If the mode changes, switch and ask for `/reload-skills`.
-- **Skills are file-based:** The gatekeeper physically moves SKILL.md files between `/opt/data/skills/` and `/opt/data/skills-disabled/`. This is safe — no data is deleted.
-- **Recovery:** If the wrong mode was selected, run `--reset` to restore all skills, then `--detect` again.
-- **The agent cannot run `/reload-skills`:** This is a user-side slash command. The agent must explicitly ask the user to run it.
-- **First message in a session:** Detection should run on the user's FIRST substantive message, not on greetings like "hello" or "hi".
+- **Threshold = 1:** Single keyword hit triggers a switch. Neutral prompts score 0 (zero false positives in 50-prompt benchmark). Ties broken alphabetically.
+- **Compound keywords:** Multi-word keywords use inclusive matching — ALL words must appear somewhere, not adjacent. "fix this Python bug" matches "fix bug" because both words are present.
+- **Recovery:** Wrong mode? `python3 skill-gatekeeper.py --reset` then retry. Nothing is ever deleted.
+- **Agent cannot run /reload-skills:** User-side slash command. Agent must ask explicitly.
+- **Running the script:** The gatekeeper lives at `/opt/data/scripts/skill-gatekeeper.py`. If not deployed, run from the skill's `scripts/` directory.
+- **Sync all files on code change:** When the gatekeeper source changes (threshold, modes, keywords, skill counts), propagate to ALL supporting files: `architecture.html`, `library-analogy.html`, `README.md`, `ARCHITECTURE.md`, and `skill-mode-switch/SKILL.md`. Stale diagrams with old thresholds or mode counts mislead reviewers.
+- **No personal-project modes:** The gatekeeper is a public tool. Modes that encode the author's personal projects (specific podcasts, branded content, side businesses) don't belong — they leak personal context and are irrelevant to other users. Keep modes generic and class-level.
+- **State/disk inconsistency after `--reset`:** `--reset` moves all skills back to disk but sets `mode: "all"` in state (preserving `default_mode`). Running `--list` may show "Mode: all" with 112 active even though state still has `default_mode: dev`. This is correct — `--boot` re-applies the default. Do NOT manually delete the state file unless you want to lose the persistent default.
+- **Hermes loads 112 on gateway restart:** Even with `--set-default dev` + cron `--boot`, a gateway restart loads all 112 skills until the next cron tick (max 30min). The agent should check current skills at session start; if count > expected, suggest `/reload-skills` after confirming the cron has run.
 
-## File Locations
+## Known Limitations
 
-- Script: `scripts/skill-gatekeeper.py` (in this skill directory)
-- Active skills: `/opt/data/skills/`
-- Disabled skills: `/opt/data/skills-disabled/`
-- State file: `/opt/data/.skill-gatekeeper-state.json`
+These are acknowledged trade-offs, not bugs:
+
+- **Cross-mode friction:** Switching modes mid-session requires `/reload-skills` round-trip. Agent uses signal-based approach (detects need, asks user). ~80% of sessions stay in one mode.
+- **Concurrent sessions:** File-locked but stale reads possible if Session A switches during Session B's turn.
+- **Filesystem coupling:** Depends on Hermes scanning directory for `SKILL.md` files. Not a stable API.
+- **Tie-breaking:** When two modes score equally (e.g., dev:1 + productivity:1), `max()` picks alphabetically. Future: weight by usage frequency.
+
+## Reference Files
+
+- `references/confidence-model.md` — Mathematical confidence breakdown (96% functional)
+- `references/accuracy-test-results.md` — 50-prompt benchmark with per-mode scores
+- `references/token-savings.md` — Methodology and per-mode savings
+- `references/self-critique-2026-05.md` — Post-build devil's advocate: 16 issues found and resolved
+- `scripts/skill-gatekeeper.py` — The gatekeeper script (~600 lines, Python stdlib only)

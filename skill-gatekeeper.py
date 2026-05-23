@@ -10,7 +10,9 @@ Usage:
     python3 skill-gatekeeper.py research           # Explicit mode
     python3 skill-gatekeeper.py --detect "text"    # Auto-detect from prompt
     python3 skill-gatekeeper.py --list             # Show current mode + active skills
-    python3 skill-gatekeeper.py --reset            # Restore ALL skills (default mode)
+    python3 skill-gatekeeper.py --reset            # Restore ALL skills temporarily
+    python3 skill-gatekeeper.py --set-default dev  # Set persistent default mode
+    python3 skill-gatekeeper.py --boot             # Reapply saved default mode
 """
 
 import os
@@ -64,6 +66,21 @@ MODE_SKILLS: dict[str, list[str]] = {
         "media/gif-search",
         # Utilities
         "productivity/maps",
+        "browser/remote-browser-cdp",
+    ],
+
+    "podcast": [
+        "media/podcast-production",
+        "media/zeroday-production",
+        "media/zeroday-blog-publishing",
+        "note-taking/notebooklm-briefing",
+        "media/youtube-content",
+        "media/youtube-channel-audit",
+        "productivity/audio-learning-drills",
+        "social-media/content-promotion-playbook",
+        "social-media/xurl",
+        "thumbnail-generation",
+        "media/gif-search",
         "browser/remote-browser-cdp",
     ],
 
@@ -222,6 +239,13 @@ MODE_KEYWORDS: dict[str, list[str]] = {
         "summarize", "wiki", "knowledge base", "learn about",
         "youtube channel", "transcript", "video summary",
         "find me", "look up", "search for", "any news",
+    ],
+    "podcast": [
+        "podcast", "episode", "zeroday brief", "zeroday_brief",
+        "briefing", "show notes", "recording", "notebooklm",
+        "audio overview", "production", "publish episode",
+        "script", "cold open", "stretch cue", "analogy",
+        "ep0", "ep1", "ep2", "ep3", "ep4", "ep5",
     ],
     "dev": [
         "code", "debug", "test", "build", "deploy", "commit",
@@ -442,8 +466,8 @@ def switch_mode(mode: str, dry_run: bool = False) -> dict:
 
             fcntl.flock(lock_fd, fcntl.LOCK_UN)
 
-    # Save state
-    _save_state(mode, desired)
+    # Save state (with mode as new default)
+    _save_state(mode, desired, default_mode=mode)
 
     return {
         "mode": mode,
@@ -489,14 +513,23 @@ def detect_mode(text: str) -> tuple[str, dict[str, int]]:
     return best_mode, dict(scores)
 
 
-def _save_state(mode: str, skills: set[str], in_progress: bool = False) -> None:
+def _save_state(mode: str, skills: set[str], in_progress: bool = False, default_mode: str = None) -> None:
     STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    STATE_FILE.write_text(json.dumps({
+    data = {
         "mode": mode,
         "active_skills": sorted(skills) if skills else [],
         "active_count": len(skills),
         "in_progress": in_progress,
-    }, indent=2))
+    }
+    # Carry forward existing default_mode if not explicitly set
+    old = {}
+    if STATE_FILE.exists() and default_mode is None:
+        try:
+            old = json.loads(STATE_FILE.read_text())
+        except (json.JSONDecodeError, IOError):
+            pass
+    data["default_mode"] = default_mode or old.get("default_mode", "all")
+    STATE_FILE.write_text(json.dumps(data, indent=2))
 
 
 def get_state() -> dict:
@@ -506,7 +539,7 @@ def get_state() -> dict:
 
 
 def reset_all() -> dict:
-    """Restore ALL skills to the active directory."""
+    """Restore ALL skills to the active directory. Preserves default_mode."""
     if DISABLED_DIR.exists():
         for skill_md in DISABLED_DIR.rglob("SKILL.md"):
             rel = skill_md.relative_to(DISABLED_DIR)
@@ -520,15 +553,15 @@ def reset_all() -> dict:
                         shutil.rmtree(str(dst))
                     dst.parent.mkdir(parents=True, exist_ok=True)
                     shutil.move(str(src), str(dst))
-        # Clean up empty dirs in disabled
         for d in sorted(DISABLED_DIR.rglob("*"), reverse=True):
             if d.is_dir() and not any(d.iterdir()):
                 d.rmdir()
         if DISABLED_DIR.exists() and not any(DISABLED_DIR.iterdir()):
             DISABLED_DIR.rmdir()
 
-    STATE_FILE.unlink(missing_ok=True)
-    return {"mode": "all", "active_count": len(get_active_skills())}
+    all_skills = get_active_skills()
+    _save_state("all", all_skills)
+    return {"mode": "all", "active_count": len(all_skills)}
 
 
 # ─── CLI ─────────────────────────────────────────────────────────────
@@ -554,6 +587,35 @@ def main():
         result = reset_all()
         print(f"✓ Reset to all mode — {result['active_count']} skills active")
         print("Run /reload-skills in Hermes to pick up changes.")
+        return
+
+    if arg == "--boot":
+        state = get_state()
+        default = state.get("default_mode", "all")
+        print(f"Default mode: {default}")
+        if default == "all":
+            print("No default mode set — all skills active.")
+            return
+        result = switch_mode(default)
+        if result.get("error"):
+            return
+        print(f"✓ Booted to {default} — {result['active_total']} active "
+              f"({result['enabled']} enabled, {result['disabled']} disabled)")
+        return
+
+    if arg == "--set-default":
+        if len(sys.argv) < 3:
+            print(f"Usage: skill-gatekeeper.py --set-default <mode>")
+            print(f"Modes: all, {', '.join(MODE_SKILLS.keys())}")
+            sys.exit(1)
+        mode = sys.argv[2]
+        if mode not in MODE_SKILLS and mode != "all":
+            print(f"Unknown mode: {mode}")
+            sys.exit(1)
+        old = get_state()
+        current_skills = get_active_skills() if old.get("mode") == "all" else set()
+        _save_state(old.get("mode", "all"), current_skills, default_mode=mode)
+        print(f"✓ Default mode set to {mode} (will auto-apply on --boot)")
         return
 
     if arg == "--detect":
