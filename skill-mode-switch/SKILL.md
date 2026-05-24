@@ -138,6 +138,17 @@ At the START of every new session, the agent MUST:
 3. Do NOT process the request until `/reload-skills` is executed
 4. If mode == "all": proceed normally
 
+### Explicit Mode Declaration (user tells you the mode)
+
+If the user explicitly states their mode (e.g., "I'm in dev mode today", "let's do research stuff", "podcast work today"), skip detection — run an explicit mode switch instead:
+
+```bash
+python3 skill-gatekeeper.py <mode>
+# e.g., python3 skill-gatekeeper.py dev
+```
+
+This is more reliable than detection. Detection is the fallback for when the user jumps straight into a task without declaring their mode. The user can declare any mode listed in the Modes table above, including `gaming` and `social` (which have no detection keywords).
+
 ## Pitfalls
 
 - **Threshold = 1:** Single keyword hit triggers a switch. Neutral prompts score 0 (zero false positives in 50-prompt benchmark). Ties broken alphabetically.

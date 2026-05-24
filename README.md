@@ -75,6 +75,8 @@ Add `--boot` to your cron/daemon to auto-trim after restarts. Two approaches:
 
 Ambiguous messages ("hello", "thanks", "what's the weather") fall back to `all` — no skills are removed.
 
+> **💡 Pro tip: Tell your agent what mode you're in.** Start a session with "I'm working in dev mode today" or "research mode this morning." The agent detects it and switches modes before you even start typing your tasks. More reliable than letting the agent guess from your first message — especially for `gaming` and `social` modes, which have no detection keywords.
+
 ## Verified Accuracy
 
 Tested on 50 prompts spanning all modes with threshold=1:
