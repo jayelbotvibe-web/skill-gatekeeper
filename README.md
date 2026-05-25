@@ -75,6 +75,21 @@ Add `--boot` to your cron/daemon to auto-trim after restarts. Two approaches:
 
 Ambiguous messages ("hello", "thanks", "what's the weather") fall back to `all` — no skills are removed.
 
+### Supporting Skills: Load What You Need, Skip What You Don't
+
+Not every skill needs to be pre-loaded. Some are **supporting skills** — pulled on-demand by the core skills when their phase requires them, then disregarded when not. Think of it like a mechanic's tool chest: wrenches and screwdrivers live on the top tray (always visible). The torque wrench and compression tester stay in the drawer until the engine rebuild actually starts.
+
+This keeps the gatekeeper lean without sacrificing capability:
+
+| Layer | Skills | When loaded |
+|-------|--------|-------------|
+| **Core** | Workflow, production, publishing, etc. | At mode switch — always visible |
+| **Supporting** | Google Workspace, X/Twitter API, YouTube tools, browser automation | On-demand — pulled by core skills only when their phase needs them |
+
+The core skills reference their supporting skills explicitly (e.g., "use `google-workspace` for Drive uploads"). The agent loads them when it reaches that step. If the step is skipped, those tokens are never spent. No pre-loading, no wasted context.
+
+This two-tier architecture means a podcast production mode stays at ~7 core skills instead of ~20 — but still has access to every supporting tool when it counts.
+
 > **💡 Pro tip: Tell your agent what mode you're in.** Start a session with "I'm working in dev mode today" or "research mode this morning." The agent detects it and switches modes before you even start typing your tasks. More reliable than letting the agent guess from your first message — especially for `gaming` and `social` modes, which have no detection keywords.
 
 ## Verified Accuracy
