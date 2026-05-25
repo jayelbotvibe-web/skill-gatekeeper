@@ -244,10 +244,39 @@
         <!-- ═══════════════════════════════════════════════════════
              FAILURE RECOVERY (bottom-right note)
              ═══════════════════════════════════════════════════════ -->
-        <text x="830" y="690" fill="#64748b" font-size="9" font-weight="600">RECOVERY</text>
-        <text x="830" y="706" fill="#94a3b8" font-size="8">python3 skill-gatekeeper.py --reset</text>
-        <text x="830" y="720" fill="#64748b" font-size="7">Restores all 110 skills instantly</text>
-        <text x="830" y="734" fill="#64748b" font-size="7">Nothing is ever deleted</text>
+        <text x="830" y="640" fill="#64748b" font-size="9" font-weight="600">RECOVERY</text>
+        <text x="830" y="656" fill="#94a3b8" font-size="8">python3 skill-gatekeeper.py --reset</text>
+        <text x="830" y="670" fill="#64748b" font-size="7">Restores all 110 skills instantly</text>
+        <text x="830" y="684" fill="#64748b" font-size="7">Nothing is ever deleted</text>
+
+        <!-- ═══════════════════════════════════════════════════════
+             TWO-TIER ARCHITECTURE (right side, below legend)
+             ═══════════════════════════════════════════════════════ -->
+        <text x="770" y="270" fill="white" font-size="10" font-weight="600">Two-Tier Loading</text>
+
+        <!-- Core tier -->
+        <rect x="770" y="285" width="260" height="80" rx="6" fill="rgba(34, 211, 238, 0.05)" stroke="#22d3ee" stroke-width="1"/>
+        <text x="785" y="305" fill="#22d3ee" font-size="9" font-weight="600">Core (always loaded)</text>
+        <text x="785" y="322" fill="#94a3b8" font-size="7">workflow · publishing · humanizer</text>
+        <text x="785" y="336" fill="#94a3b8" font-size="7">7 skills · 32% of active set</text>
+        <text x="785" y="352" fill="#64748b" font-size="6">Loaded at mode switch · always visible</text>
+
+        <!-- Supporting tier -->
+        <rect x="770" y="380" width="260" height="80" rx="6" fill="rgba(168, 85, 247, 0.05)" stroke="#a855f7" stroke-width="1"/>
+        <text x="785" y="400" fill="#a855f7" font-size="9" font-weight="600">Supporting (on-demand)</text>
+        <text x="785" y="417" fill="#94a3b8" font-size="7">YouTube API · X client · Google Drive</text>
+        <text x="785" y="431" fill="#94a3b8" font-size="7">8+ skills · pulled when phase needs them</text>
+        <text x="785" y="447" fill="#64748b" font-size="6">Referenced by core · skipped if unused</text>
+
+        <!-- Arrow: Supporting → demand -->
+        <line x1="900" y1="380" x2="900" y2="370" stroke="#a855f7" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#arrow)"/>
+        <text x="908" y="370" fill="#a855f7" font-size="6">loaded when needed</text>
+
+        <!-- Arrow: Core → not loaded path -->
+        <text x="770" y="480" fill="#34d399" font-size="9" font-weight="600">Result</text>
+        <text x="770" y="498" fill="#94a3b8" font-size="7">19 skills total available</text>
+        <text x="770" y="514" fill="#94a3b8" font-size="7">Only 7 pre-loaded in context</text>
+        <text x="770" y="530" fill="#64748b" font-size="7">Mechanic's toolbox: top tray + drawers</text>
       </svg>
     </div>
 
