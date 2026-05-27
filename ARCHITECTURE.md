@@ -249,6 +249,12 @@ When the user needs a skill from outside their current mode, the gatekeeper requ
 
 For the estimated 80% of sessions that stay within a single mode, this is a non-issue. For the remaining 20%, the trade-off is latency vs. token savings.
 
+### Curator Conflict (resolved in v2.0)
+
+Hermes Curator runs every 7 days, archiving stale agent-created skills and consolidating duplicates. Without coordination, the gatekeeper could reference a skill the curator had archived — causing silent failures on mode switch.
+
+**v2.0 fix:** The gatekeeper now reads the curator's latest `run.json` (structured JSON trail at `/opt/data/logs/curator/*/run.json`) on every mode switch. Skills consolidated into umbrellas auto-redirect. Skills archived with no replacement are skipped with a warning log event. Active skills pass through unchanged. The gatekeeper also logs `CURATOR_RESOLVE` and `MISSING_SKILL` events for audit.
+
 ## Integration with Hermes
 
 The `skill-mode-switch` skill teaches the agent the workflow:

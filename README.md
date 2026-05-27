@@ -1,6 +1,6 @@
 # Skill Gatekeeper for Hermes Agent
 
-**Auto-switch active skills by detected mode. Cuts system prompt tokens by ~32%.**
+**Auto-switch active skills by detected mode. Cuts system prompt tokens by ~32%. Curator-aware — survives skill archival and consolidation.**
 
 Hermes loads every installed skill into the system prompt on every turn. At 112 skills, that's ~8,000-12,000 wasted tokens. The gatekeeper detects your mode from your message and keeps only the relevant skills — same agent, same memory, trimmer prompt.
 
@@ -129,6 +129,18 @@ Skills directory stays trimmed across gateway restarts
 ```
 
 Read [ARCHITECTURE.md](ARCHITECTURE.md) for design decisions, mode detection algorithm, and customization.
+
+## Curator Awareness (v2.0)
+
+Hermes Curator autonomously maintains your skill library — archiving stale skills, consolidating duplicates. Without coordination, the curator and gatekeeper can conflict: the curator archives a skill the gatekeeper still references, causing silent failures.
+
+**v2.0 resolves this.** On every mode switch, the gatekeeper reads the curator's `run.json` trail and adapts:
+
+- **Consolidated skill** (e.g., `podcast-production` → `zeroday-master-workflow`) → auto-redirects to the umbrella
+- **Archived with no replacement** → skips gracefully with a warning log
+- **Active skills** → pass through unchanged
+
+No manual syncing needed. Both systems run independently, sharing the curator's structured run trail as a common language.
 
 ## Requirements
 

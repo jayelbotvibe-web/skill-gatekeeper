@@ -86,14 +86,15 @@ MODE_SKILLS: dict[str, list[str]] = {
     ],
 
     "podcast": [
-        "media/podcast-production",
-        "media/zeroday-production",
+        "media/zeroday-master-workflow",
+        # podcast-production was archived by curator → merged into zeroday-master-workflow
         "media/zeroday-blog-publishing",
         "note-taking/notebooklm-briefing",
+        "creative/humanizer",
         "media/youtube-content",
         "media/youtube-channel-audit",
-        "productivity/audio-learning-drills",
-        "social-media/content-promotion-playbook",
+        # audio-learning-drills: archived by curator, no umbrella (removed)
+        # content-promotion-playbook: archived by curator, no umbrella (removed)
         "social-media/xurl",
         "thumbnail-generation",
         "media/gif-search",
@@ -184,7 +185,7 @@ MODE_SKILLS: dict[str, list[str]] = {
 
     "productivity": [
         "productivity/airtable",
-        "productivity/audio-learning-drills",
+        # audio-learning-drills: archived by curator, no umbrella (removed)
         "productivity/file-housekeeping",
         "productivity/google-workspace",
         "productivity/linear",
@@ -203,7 +204,7 @@ MODE_SKILLS: dict[str, list[str]] = {
         "note-taking/obsidian",
         "media/spotify",
         "social-media/xurl",
-        "social-media/content-promotion-playbook",
+        # content-promotion-playbook: archived by curator, no umbrella (removed)
         "browser/remote-browser-cdp",
     ],
 
@@ -232,7 +233,7 @@ MODE_SKILLS: dict[str, list[str]] = {
 
     "social": [
         "social-media/xurl",
-        "social-media/content-promotion-playbook",
+        # content-promotion-playbook: archived by curator, no umbrella (removed)
         "media/spotify",
         "media/gif-search",
     ],
@@ -332,6 +333,94 @@ MODE_KEYWORDS: dict[str, list[str]] = {
 MIN_AUTO_SCORE = 1
 
 
+# ─── Curator Awareness ─────────────────────────────────────────────────
+
+def _get_curator_redirects() -> dict[str, str]:
+    """Read the latest curator run.json and return {archived_name: umbrella_name}."""
+    curator_logs = _HERMES_HOME / "logs" / "curator"
+    if not curator_logs.exists():
+        return {}
+
+    # Find latest run.json by sorting run directories descending
+    runs = sorted(
+        [d for d in curator_logs.iterdir() if d.is_dir() and (d / "run.json").exists()],
+        key=lambda p: p.name, reverse=True,
+    )
+    if not runs:
+        return {}
+
+    try:
+        data = json.loads((runs[0] / "run.json").read_text())
+    except (json.JSONDecodeError, IOError):
+        return {}
+
+    redirects: dict[str, str] = {}
+    for entry in data.get("consolidated", []):
+        name = entry.get("name", "").strip()
+        into = entry.get("into", "").strip()
+        if name and into:
+            redirects[name] = into
+    return redirects
+
+
+def _resolve_skill_path(
+    skill: str,
+    active_skills: set[str],
+    all_skills: set[str],
+    redirects: dict[str, str],
+) -> tuple[str, str | None]:
+    """Resolve a skill path, returning (resolved_path, resolution_note).
+
+    Returns (skill, None) if the skill is valid as-is.
+    Returns (umbrella, note) if redirected via curator consolidation.
+    Returns ("", note) if unresolvable (missing, no redirect, no fuzzy match).
+    """
+    short_name = skill.split("/")[-1]
+
+    # 1. Skill is ACTIVE — use as-is
+    if skill in active_skills:
+        return skill, None
+
+    # 2. Curator consolidated this skill into an umbrella
+    #    (check BEFORE disabled match — prevents reactivating archived skills)
+    if short_name in redirects:
+        umbrella_name = redirects[short_name]
+        for s in active_skills:
+            if s.endswith("/" + umbrella_name):
+                return s, f"curator: {short_name} → {umbrella_name}"
+        # Umbrella not in active — try all_skills (might be disabled)
+        for s in all_skills:
+            if s.endswith("/" + umbrella_name):
+                return s, f"curator: {short_name} → {umbrella_name} (umbrella reactivated)"
+
+    # 3. Skill exists in disabled (or active via different path) — return as-is
+    if skill in all_skills:
+        return skill, None
+
+    # 4. Curator archived with no umbrella — skip
+    try:
+        curator_logs = _HERMES_HOME / "logs" / "curator"
+        runs = sorted(
+            [d for d in curator_logs.iterdir() if d.is_dir() and (d / "run.json").exists()],
+            key=lambda p: p.name, reverse=True,
+        )
+        if runs:
+            data = json.loads((runs[0] / "run.json").read_text())
+            archived = set(data.get("archived", []))
+            if short_name in archived:
+                return "", f"curator: {short_name} was archived (no replacement)"
+    except (json.JSONDecodeError, IOError, OSError):
+        pass
+
+    # 5. Fuzzy match by basename
+    for as_name in all_skills:
+        if as_name.endswith("/" + short_name):
+            return as_name, f"fuzzy: {skill} → {as_name}"
+
+    # 6. Dead reference
+    return "", f"missing: {skill} (not on disk, no curator trail)"
+
+
 # ─── Core Logic ─────────────────────────────────────────────────────
 
 def _normalize_skill_path(name: str) -> str:
@@ -366,7 +455,11 @@ def get_all_skills() -> set[str]:
 
 
 def get_skills_for_mode(mode: str) -> set[str]:
-    """Get the full set of skills that should be active for a mode."""
+    """Get the full set of skills that should be active for a mode.
+
+    Resolves missing skills via curator consolidation trail (run.json),
+    then fuzzy match. Logs resolutions for audit.
+    """
     if mode == "all":
         return get_all_skills()
 
@@ -375,27 +468,32 @@ def get_skills_for_mode(mode: str) -> set[str]:
     if mode in MODE_SKILLS:
         skills.update(MODE_SKILLS[mode])
 
-    # Validate that all referenced skills actually exist
+    # Collect all known skills (active + disabled) for resolution
     all_skills = get_all_skills()
-    valid = set()
-    missing = set()
-    for s in skills:
-        if s in all_skills:
-            valid.add(s)
-        else:
-            # Try fuzzy match
-            found = False
-            for as_name in all_skills:
-                if as_name.endswith("/" + s.split("/")[-1]):
-                    valid.add(as_name)
-                    found = True
-                    break
-            if not found:
-                missing.add(s)
+    active_skills = get_active_skills()
+    redirects = _get_curator_redirects()
 
+    valid: set[str] = set()
+    resolved: list[str] = []     # curator redirects (info)
+    missing: list[str] = []       # dead references (warning)
+
+    for s in skills:
+        resolved_path, note = _resolve_skill_path(s, active_skills, all_skills, redirects)
+        if resolved_path:
+            valid.add(resolved_path)
+        if note:
+            if note.startswith("curator:"):
+                resolved.append(note)
+            else:
+                missing.append(note)
+
+    # Log curator resolutions
+    if resolved:
+        _log("CURATOR_RESOLVE", f"mode={mode} " + "; ".join(resolved))
     if missing:
-        print(f"⚠ Warning: {len(missing)} skill(s) not found: {', '.join(sorted(missing))[:200]}",
-              file=sys.stderr)
+        _log("MISSING_SKILL", f"mode={mode} " + "; ".join(missing))
+        print(f"⚠ Warning: {len(missing)} skill(s) not found: "
+              f"{'; '.join(missing)}", file=sys.stderr)
 
     return valid
 
